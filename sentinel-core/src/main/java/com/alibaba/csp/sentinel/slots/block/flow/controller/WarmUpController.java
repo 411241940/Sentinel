@@ -62,7 +62,7 @@ import com.alibaba.csp.sentinel.slots.block.flow.TrafficShapingController;
  * @author jialiang.linjl
  */
 public class WarmUpController implements TrafficShapingController {
-    
+
     // QPS阈值
     protected double count;
 
