@@ -23,7 +23,11 @@ import com.alibaba.csp.sentinel.util.TimeUtil;
 import com.alibaba.csp.sentinel.node.Node;
 
 /**
+<<<<<<< HEAD
  * 排队等待 流控器
+=======
+ * 排队等待流控
+>>>>>>> 10ff0e2b24fa13682aacb7e860f5d9dcbf57fb91
  * @author jialiang.linjl
  */
 public class RateLimiterController implements TrafficShapingController {
@@ -60,6 +64,8 @@ public class RateLimiterController implements TrafficShapingController {
         }
 
         long currentTime = TimeUtil.currentTimeMillis();
+
+        // 计算每 2 个请求之间的间隔，比如 QPS 限制为 10，那么间隔就是 100ms
         // Calculate the interval between every two requests.
         // 计算每 2 个请求之间的间隔，比如 QPS 限制为 10，那么间隔就是 100ms
         long costTime = Math.round(1.0 * (acquireCount) / count * 1000);
@@ -74,6 +80,7 @@ public class RateLimiterController implements TrafficShapingController {
             latestPassedTime.set(currentTime);
             return true;
         } else {
+            // 计算需要等待的时间
             // Calculate the time to wait.
             // 不可以通过，需要等待
             long waitTime = costTime + latestPassedTime.get() - TimeUtil.currentTimeMillis();

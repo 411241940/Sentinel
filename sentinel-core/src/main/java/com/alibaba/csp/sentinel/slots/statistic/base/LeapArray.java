@@ -116,9 +116,9 @@ public abstract class LeapArray<T> {
             return null;
         }
 
-        int idx = calculateTimeIdx(timeMillis);
+        int idx = calculateTimeIdx(timeMillis); // 获取窗口下标
         // Calculate current bucket start time.
-        long windowStart = calculateWindowStart(timeMillis);
+        long windowStart = calculateWindowStart(timeMillis); // 计算该窗口的理论开始时间
 
         /*
          * Get bucket item at given time from the array.
@@ -127,9 +127,11 @@ public abstract class LeapArray<T> {
          * (2) Bucket is up-to-date, then just return the bucket.
          * (3) Bucket is deprecated, then reset current bucket and clean all deprecated buckets.
          */
+        // 防并发
         while (true) {
             WindowWrap<T> old = array.get(idx);
             if (old == null) {
+                // 窗口未实例化的情况，使用一个 CAS 来设置该窗口实例
                 /*
                  *     B0       B1      B2    NULL      B4
                  * ||_______|_______|_______|_______|_______||___
@@ -147,10 +149,12 @@ public abstract class LeapArray<T> {
                     // Successfully updated, return the created bucket.
                     return window;
                 } else {
+                    // 竞争失败
                     // Contention failed, the thread will yield its time slice to wait for bucket available.
                     Thread.yield();
                 }
             } else if (windowStart == old.windowStart()) {
+                // 当前数组中的窗口没有过期
                 /*
                  *     B0       B1      B2     B3      B4
                  * ||_______|_______|_______|_______|_______||___
@@ -164,6 +168,7 @@ public abstract class LeapArray<T> {
                  */
                 return old;
             } else if (windowStart > old.windowStart()) {
+                // 该窗口已过期，重置窗口的值。使用一个锁来控制并发。
                 /*
                  *   (old)
                  *             B0       B1      B2    NULL      B4
@@ -193,6 +198,7 @@ public abstract class LeapArray<T> {
                     Thread.yield();
                 }
             } else if (windowStart < old.windowStart()) {
+                // 正常情况都不会走到这个分支，异常情况其实就是时钟回拨，这里返回一个 WindowWrap 是容错
                 // Should not go through here, as the provided time is already behind.
                 return new WindowWrap<T>(windowLengthInMs, windowStart, newEmptyBucket(timeMillis));
             }
@@ -265,6 +271,7 @@ public abstract class LeapArray<T> {
         return isWindowDeprecated(TimeUtil.currentTimeMillis(), windowWrap);
     }
 
+    // 判断当前窗口是否过期
     public boolean isWindowDeprecated(long time, WindowWrap<T> windowWrap) {
         return time - windowWrap.windowStart() > intervalInMs;
     }
@@ -333,6 +340,7 @@ public abstract class LeapArray<T> {
 
         for (int i = 0; i < size; i++) {
             WindowWrap<T> windowWrap = array.get(i);
+            // 过滤掉过期数据
             if (windowWrap == null || isWindowDeprecated(timeMillis, windowWrap)) {
                 continue;
             }

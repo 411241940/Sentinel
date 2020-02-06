@@ -150,6 +150,9 @@ public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
          * The answer is all {@link DefaultNode}s with same resource name share one
          * {@link ClusterNode}. See {@link ClusterBuilderSlot} for detail.
          */
+        // 根据「上下文」的名称获取DefaultNode
+        // 多线程环境下，每个线程都会创建一个context，
+        // 只要资源名相同，则context的名称也相同，那么获取到的节点就相同
         DefaultNode node = map.get(context.getName());
         if (node == null) {
             synchronized (this) {
@@ -161,6 +164,8 @@ public class NodeSelectorSlot extends AbstractLinkedProcessorSlot<Object> {
                     cacheMap.put(context.getName(), node);
                     map = cacheMap;
                     // Build invocation tree
+                    // 将资源的调用路径，以树状结构存储起来，用于根据调用路径来限流降级
+                    // EntranceNode是根节点，DefaultNode是叶子节点
                     ((DefaultNode) context.getLastNode()).addChild(node);
                 }
 

@@ -58,7 +58,7 @@ public class HeartbeatSenderInitFunc implements InitFunc {
         initSchedulerIfNeeded();
         long interval = retrieveInterval(sender);
         setIntervalIfNotExists(interval);
-        scheduleHeartbeatTask(sender, interval);
+        scheduleHeartbeatTask(sender, interval); // 启动一个定时器，发送心跳信息
     }
 
     private boolean isValidHeartbeatInterval(Long interval) {

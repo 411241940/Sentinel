@@ -32,6 +32,7 @@ import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.slots.block.BlockException;
 
 /**
+ * 实时数据统计记录，统计不同纬度的 runtime 信息
  * <p>
  * A processor slot that dedicates to real time statistics.
  * When entering this slot, we need to separately count the following
@@ -54,9 +55,12 @@ public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
                       boolean prioritized, Object... args) throws Throwable {
         try {
             // Do some checking.
+            // 执行后面的责任链
             fireEntry(context, resourceWrapper, node, count, prioritized, args);
 
             // Request passed, add thread count and pass count.
+            // 如果能通过后面的责任链，说明没有被限流或降级
+            // 统计信息
             node.increaseThreadNum();
             node.addPassRequest(count);
 
@@ -96,6 +100,7 @@ public class StatisticSlot extends AbstractLinkedProcessorSlot<DefaultNode> {
             context.getCurEntry().setError(e);
 
             // Add block count.
+            // 统计被block的数量
             node.increaseBlockQps(count);
             if (context.getCurEntry().getOriginNode() != null) {
                 context.getCurEntry().getOriginNode().increaseBlockQps(count);

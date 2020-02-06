@@ -116,23 +116,31 @@ public class CtSph implements Sph {
 
     private Entry entryWithPriority(ResourceWrapper resourceWrapper, int count, boolean prioritized, Object... args)
         throws BlockException {
+
+        // 从 ThreadLocal 中获取 Context 实例
         Context context = ContextUtil.getContext();
+
+        // 如果是 NullContext，那么说明 context name 超过了 2000 个，参见 ContextUtil#trueEnter
+        // 这个时候，Sentinel 不再接受处理新的 context 配置，也就是不做这些新的接口的统计、限流熔断等
         if (context instanceof NullContext) {
             // The {@link NullContext} indicates that the amount of context has exceeded the threshold,
             // so here init the entry only. No rule checking will be done.
             return new CtEntry(resourceWrapper, null, context);
         }
 
+        // 如果不显式调用 ContextUtil#enter，会进入到默认的 context 中
         if (context == null) {
             // Using default context.
             context = InternalContextUtil.internalEnter(Constants.CONTEXT_DEFAULT_NAME);
         }
 
         // Global switch is close, no rule checking will do.
+        // 全局开关，Sentinel 提供了接口让用户可以在 dashboard 开启/关闭
         if (!Constants.ON) {
             return new CtEntry(resourceWrapper, null, context);
         }
 
+        // 构建责任链，入参是 resource，前面我们说过资源的唯一标识是 resource name
         ProcessorSlot<Object> chain = lookProcessChain(resourceWrapper);
 
         /*
@@ -143,6 +151,7 @@ public class CtSph implements Sph {
             return new CtEntry(resourceWrapper, null, context);
         }
 
+        // 执行责任链，如果抛出 BlockException，说明链上的某一环拒绝了该请求，把这个异常往上层业务层抛，业务层处理 BlockException 应该进入到熔断降级逻辑中
         Entry e = new CtEntry(resourceWrapper, chain, context);
         try {
             chain.entry(context, resourceWrapper, null, count, prioritized, args);
@@ -177,6 +186,7 @@ public class CtSph implements Sph {
     }
 
     /**
+     * 同个资源共享责任链
      * Get {@link ProcessorSlotChain} of the resource. new {@link ProcessorSlotChain} will
      * be created if the resource doesn't relate one.
      *
@@ -198,6 +208,7 @@ public class CtSph implements Sph {
                 chain = chainMap.get(resourceWrapper);
                 if (chain == null) {
                     // Entry size limit.
+                    // 当 resource 超过 6000 的时，Sentinel 不处理新的请求，这么做主要是为了 Sentinel 的性能考虑
                     if (chainMap.size() >= Constants.MAX_SLOT_CHAIN_SIZE) {
                         return null;
                     }
