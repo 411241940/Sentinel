@@ -63,13 +63,24 @@ import com.alibaba.csp.sentinel.slots.block.flow.TrafficShapingController;
  */
 public class WarmUpController implements TrafficShapingController {
 
+    // QPS阈值
     protected double count;
-    private int coldFactor;
+
+    private int coldFactor; // 3
+
+    // 转折点的令牌数，和 Guava 的 thresholdPermits 一个意思
     protected int warningToken = 0;
+
+    // 最大的令牌数，和 Guava 的 maxPermits 一个意思
     private int maxToken;
+
+    // 斜线斜率
     protected double slope;
 
+    // 累积的令牌数，和 Guava 的 storedPermits 一个意思
     protected AtomicLong storedTokens = new AtomicLong(0);
+
+    // 最后更新令牌的时间
     protected AtomicLong lastFilledTime = new AtomicLong(0);
 
     public WarmUpController(double count, int warmUpPeriodInSec, int coldFactor) {
@@ -99,8 +110,7 @@ public class WarmUpController implements TrafficShapingController {
         maxToken = warningToken + (int)(2 * warmUpPeriodInSec * count / (1.0 + coldFactor));
 
         // slope
-        // slope = (coldIntervalMicros - stableIntervalMicros) / (maxPermits
-        // - thresholdPermits);
+        // slope = (coldIntervalMicros - stableIntervalMicros) / (maxPermits - thresholdPermits);
         slope = (coldFactor - 1.0) / count / (maxToken - warningToken);
 
     }
@@ -112,19 +122,33 @@ public class WarmUpController implements TrafficShapingController {
 
     @Override
     public boolean canPass(Node node, int acquireCount, boolean prioritized) {
+
+        // 当前时间窗口的 QPS
         long passQps = (long) node.passQps();
 
+        // 这里是上一个时间窗口的 QPS，这里的一个窗口跨度是1分钟
         long previousQps = (long) node.previousPassQps();
+
+        // 同步。设置 storedTokens 和 lastFilledTime 到正确的值
         syncToken(previousQps);
 
         // 开始计算它的斜率
         // 如果进入了警戒线，开始调整他的qps
         long restToken = storedTokens.get();
+
+        // 令牌数超过 warningToken，进入梯形区域
         if (restToken >= warningToken) {
+
+            // 这里简单说一句，因为当前的令牌数超过了 warningToken 这个阈值，系统处于需要预热的阶段
+            // 通过计算当前获取一个令牌所需时间，计算其倒数即是当前系统的最大 QPS 容量
             long aboveToken = restToken - warningToken;
+
             // 消耗的速度要比warning快，但是要比慢
             // current interval = restToken*slope+1/count
+            // 当前状态下能达到的最高 QPS
+            // (aboveToken * slope + 1.0 / count) 其实就是在当前状态下获取一个令牌所需要的时间
             double warningQps = Math.nextUp(1.0 / (aboveToken * slope + 1.0 / count));
+
             if (passQps + acquireCount <= warningQps) {
                 return true;
             }
