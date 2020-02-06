@@ -32,6 +32,8 @@ import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.slotchain.StringResourceWrapper;
 
 /**
+ * 构造 ClusterNode
+ * 用于存储资源的统计信息以及调用者信息，例如该资源的 RT, QPS, thread count 等等，这些信息将用作为多维度限流，降级的依据
  * <p>
  * This slot maintains resource running statistics (response time, qps, thread
  * count, exception), and a list of callers as well which is marked by
@@ -68,12 +70,15 @@ public class ClusterBuilderSlot extends AbstractLinkedProcessorSlot<DefaultNode>
 
     private static final Object lock = new Object();
 
-    private volatile ClusterNode clusterNode = null;
+    private volatile ClusterNode clusterNode = null; // 一个 resource 对应一个责任链，所以这里一个 resource 对应一个clusterNode
 
     @Override
     public void entry(Context context, ResourceWrapper resourceWrapper, DefaultNode node, int count,
                       boolean prioritized, Object... args)
         throws Throwable {
+
+        // 构造 ClusterNode
+        // 每一个 resource 对应一个 ClusterNode 实例，如果不存在，就创建一个实例
         if (clusterNode == null) {
             synchronized (lock) {
                 if (clusterNode == null) {
@@ -90,6 +95,7 @@ public class ClusterBuilderSlot extends AbstractLinkedProcessorSlot<DefaultNode>
         node.setClusterNode(clusterNode);
 
         /*
+         * 当设置了 origin 的时候，会额外生成一个 StatisticsNode 实例，挂在 ClusterNode 上
          * if context origin is set, we should get or create a new {@link Node} of
          * the specific origin.
          */

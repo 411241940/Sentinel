@@ -21,6 +21,7 @@ import com.alibaba.csp.sentinel.slotchain.ResourceWrapper;
 import com.alibaba.csp.sentinel.slots.nodeselector.NodeSelectorSlot;
 
 /**
+ * 该节点表示一棵调用链树的入口节点，通过他可以获取调用链树中所有的子节点
  * <p>
  * A {@link Node} represents the entrance of the invocation tree.
  * </p>

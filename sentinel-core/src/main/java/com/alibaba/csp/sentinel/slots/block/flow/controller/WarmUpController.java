@@ -63,14 +63,14 @@ import com.alibaba.csp.sentinel.slots.block.flow.TrafficShapingController;
  */
 public class WarmUpController implements TrafficShapingController {
 
-    protected double count;
+    protected double count; // QPS 设置的值
     private int coldFactor;
-    protected int warningToken = 0;
-    private int maxToken;
-    protected double slope;
+    protected int warningToken = 0; // 转折点的令牌数，和 Guava 的 thresholdPermits 一个意思
+    private int maxToken; // 最大的令牌数
+    protected double slope; // 斜线斜率
 
-    protected AtomicLong storedTokens = new AtomicLong(0);
-    protected AtomicLong lastFilledTime = new AtomicLong(0);
+    protected AtomicLong storedTokens = new AtomicLong(0); // 累积的令牌数，和 Guava 的 storedPermits 一个意思
+    protected AtomicLong lastFilledTime = new AtomicLong(0); // 最后更新令牌的时间
 
     public WarmUpController(double count, int warmUpPeriodInSec, int coldFactor) {
         construct(count, warmUpPeriodInSec, coldFactor);

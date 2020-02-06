@@ -192,14 +192,15 @@ public class DegradeRule extends AbstractRule {
             return true;
         }
 
-        if (grade == RuleConstant.DEGRADE_GRADE_RT) {
+        if (grade == RuleConstant.DEGRADE_GRADE_RT) { // RT降级规则
             double rt = clusterNode.avgRt();
-            if (rt < this.count) {
+            if (rt < this.count) { // 平均 RT 小于阈值，重置为0
                 passCount.set(0);
                 return true;
             }
 
             // Sentinel will degrade the service only if count exceeds.
+            // 半降级状态。当命中规则次数超过阈值（默认5），才降级
             if (passCount.incrementAndGet() < rtSlowRequestAmount) {
                 return true;
             }
@@ -229,6 +230,7 @@ public class DegradeRule extends AbstractRule {
             }
         }
 
+        // 启动一个定时任务，10秒后重置计数器
         if (cut.compareAndSet(false, true)) {
             ResetTask resetTask = new ResetTask(this);
             pool.schedule(resetTask, timeWindow, TimeUnit.SECONDS);
